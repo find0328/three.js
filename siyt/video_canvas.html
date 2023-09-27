@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Test0712</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+      body {
+        background-color: #ccc;
+        color: #000;
+      }
+
+      #canvas1 {
+        border: 1px solid red;
+        width: 400px;
+        height: 400px;
+        display: inline;
+      }
+
+      #canvas2 {
+        border: 1px solid blue;
+        width: 400px;
+        height: 400px;
+        display: inline;
+      }
+
+      #video1 {
+        border: 1px solid green;
+        width: 300px;
+        height: 300px;
+        display: none;
+      }
+
+    </style>
+  </head>
+
+  <body>
+    <canvas id="canvas1" width="400px" height="400px"></canvas>
+    <canvas id="canvas2" width="400px" height="400px"></canvas>
+    <video id="video1" autoplay="autoplay" controls>
+      <source src="./bird.mp4" type="video/mp4">
+    </video>
+    <br>
+    <br>
+    <br>
+    <script>
+      var x;
+      var y;
+      var renderWidth;
+      var renderHeight;
+      var useWidth = true;
+      var videoObject;
+      var canvasObject;
+      var ctx;
+      function getSize(video, canvas) {
+        var videoWidth = video.videoWidth;
+        var videoHeight = video.videoHeight;
+        var videoRatio = videoWidth / videoHeight;
+
+        // canvas.width/height: 是画布的size，通过canvas tag中的width/height指定，默认是(300px,150px)
+        // canvas.clientWidth/clientHeight: 是画板的size，有css width/height指定
+        // 画布内容要在画板上展示(渲染)出来, 简单理解：画布是绘制，画板是渲染
+        // 如果画布和画板size不同，那么渲染时画布要经过缩放来使其与画板尺寸同样
+        // 绘制时计算size时要使用width/height，否则如果用clientWidth/clientHeight，可能只能看到部分内容
+        // 绘制时计算size时使用width/height，即使width/height和clientWidth/clientHeight的值不同，也不会出现
+        // 只绘制部分内容，如果两者比例不同，则只会出现画面拉伸
+        // http://www.noobyard.com/article/p-glseredr-oc.html
+        var canvasWidth = canvas.width;
+        var canvasHeight = canvas.height;
+        var canvasRatio = canvasWidth / canvasHeight;
+
+        console.log("videoRatio=" + videoRatio);
+        console.log("canvasRatio=" + canvasRatio);
+        console.log("video(w,h)=(" + videoWidth + "," + videoHeight + ")");
+        console.log("canvas(w,h)=(" + canvasWidth + "," + canvasHeight + ")");
+        if (videoRatio > canvasRatio) { // 视频更宽，用canvas的width
+          renderWidth = canvasWidth;
+          renderHeight = canvasWidth / videoRatio;
+          useWidth = true;
+        } else { // canvas更宽，用canvas的height
+          renderHeight = canvasHeight;
+          renderWidth = canvasHeight * videoRatio;
+          useWidth = false;
+        }
+        console.log("render(w,h)=(" + renderWidth + "," + renderHeight + ")");
+        console.log("useWidth=" + useWidth);
+      }
+
+      function initialize() {
+        console.log("initialize ----");
+        videoObject = document.getElementById("video1");
+        canvasObject = document.getElementById("canvas1");
+        ctx = canvasObject.getContext('2d');
+        ctx.clearRect(0, 0, canvasObject.width, canvasObject.height);
+        videoObject.addEventListener('loadedmetadata', () => {
+          getSize(videoObject, canvasObject);
+          x = useWidth ? 0 : Math.abs((canvasObject.width - renderWidth) / 2);
+          y = useWidth ? Math.abs((canvasObject.height - renderHeight) / 2): 0;
+          console.log("loadedmetadata ----(x,y,w,h)=("+x+","+y+","+renderWidth+","+renderHeight+")");
+        });
+        videoObject.addEventListener('play', () => {
+          console.log("play ----");
+          window.requestAnimationFrame((timestamp) => VideoRender(timestamp));
+        });
+      }
+      function VideoRender() {
+        if (!videoObject || videoObject.paused) return;
+        ctx.drawImage(videoObject, x, y, renderWidth, renderHeight);
+        // ctx.drawImage(videoObject, 0, 0, canvasObject.width, canvasObject.height);
+        window.requestAnimationFrame((timestamp) => VideoRender(timestamp));
+      }
+      initialize();
+      window.requestAnimationFrame((timestamp) => VideoRender(timestamp));
+    </script>
+  </body>
+</html>
