@@ -14,6 +14,7 @@ let controllerGrip1, controllerGrip2;
 let room, marker, floor, baseReferenceSpace;
 
 let INTERSECTION;
+let videoClicked;
 const tempMatrix = new THREE.Matrix4();
 
 function init() {
@@ -52,9 +53,13 @@ function init() {
 
   // 2.4> 加载左右手柄射线
   function onSelectStart() {
+    console.log("onSelectStart: this=" + this);
     this.userData.isSelecting = true;
   }
   function onSelectEnd() {
+    console.log("onSelectEnd: this=" + this);
+    console.log("onSelectEnd: INTERSECTION=" + INTERSECTION);
+    console.log("onSelectEnd: videoClicked=" + videoClicked);
     this.userData.isSelecting = false;
     if ( INTERSECTION ) {
       const offsetPosition = { x: - INTERSECTION.x, y: - INTERSECTION.y, z: - INTERSECTION.z, w: 1 };
@@ -63,14 +68,24 @@ function init() {
       const teleportSpaceOffset = baseReferenceSpace.getOffsetReferenceSpace( transform );
       renderer.xr.setReferenceSpace( teleportSpaceOffset );
     }
+
+    if (videoClicked) {
+      if (videoPlayerObject.isPaused()) {
+        videoPlayerObject.play();
+      } else {
+        videoPlayerObject.pause();
+      }
+    }
   }
   controller1 = renderer.xr.getController( 0 );
   controller1.addEventListener( 'selectstart', onSelectStart );
   controller1.addEventListener( 'selectend', onSelectEnd );
   controller1.addEventListener( 'connected', function ( event ) {
+    console.log("controller1 connected: this=" + this);
     this.add( buildController( event.data ) );
   } );
   controller1.addEventListener( 'disconnected', function () {
+    console.log("controller1 disconnected: this=" + this);
     this.remove( this.children[ 0 ] );
   } );
   scene.add( controller1 );
@@ -78,9 +93,11 @@ function init() {
   controller2.addEventListener( 'selectstart', onSelectStart );
   controller2.addEventListener( 'selectend', onSelectEnd );
   controller2.addEventListener( 'connected', function ( event ) {
+    console.log("controller2 connected: this=" + this);
     this.add( buildController( event.data ) );
   } );
   controller2.addEventListener( 'disconnected', function () {
+    console.log("controller2 disconnected: this=" + this);
     this.remove( this.children[ 0 ] );
   } );
   scene.add( controller2 );
@@ -171,6 +188,12 @@ function render() {
     const intersects = raycaster.intersectObjects( [ floor ] );
     if ( intersects.length > 0 ) {
       INTERSECTION = intersects[ 0 ].point;
+    }
+    const intersects_with_video = raycaster.intersectObjects( [ videoPlayerObject.getMesh() ] );
+    if ( intersects_with_video.length > 0 ) {
+      videoClicked = true;
+    } else {
+      videoClicked = false;
     }
   } else if ( controller2.userData.isSelecting === true ) {
     tempMatrix.identity().extractRotation( controller2.matrixWorld );
