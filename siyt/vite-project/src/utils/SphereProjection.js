@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
+import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
 import { PlaneVideoPlayer } from './PlaneVideoPlayer.js';
 
 class SphereProjection {
@@ -55,16 +56,89 @@ class SphereProjection {
     // this._playButtonObject.position.z = -5;
     // this.scene.add(this._playButtonObject);
 
+    this.raycaster = new THREE.Raycaster();
+    this.tempMatrix = new THREE.Matrix4();
+
     this.renderer = new THREE.WebGLRenderer();
     this.renderer.setPixelRatio( window.devicePixelRatio );
     // this.renderer.setSize( window.innerWidth, window.innerHeight );
     this.renderer.setSize( 800, 800 );
+    this.renderer.xr.addEventListener( 'sessionstart', () => this.baseReferenceSpace = this.renderer.xr.getReferenceSpace() );
     this.renderer.xr.enabled = true;
     this.renderer.xr.setReferenceSpaceType( 'local' );
     this.container.appendChild( this.renderer.domElement );
     this.container.appendChild( VRButton.createButton( this.renderer ) );
 
+
+    function onControllerSelectStart() {
+      this.userData.isSelecting = true; // this is rightControllerRay/leftControllerRay
+    }
+
+    function onControllerSelectEnd(renderer, baseReferenceSpace) {
+      this.userData.isSelecting = false;
+      if ( INTERSECTION ) {
+        const offsetPosition = { x: - INTERSECTION.x, y: - INTERSECTION.y, z: - INTERSECTION.z, w: 1 };
+        const offsetRotation = new THREE.Quaternion();
+        const transform = new XRRigidTransform( offsetPosition, offsetRotation );
+        const teleportSpaceOffset = baseReferenceSpace.getOffsetReferenceSpace( transform );
+        renderer.xr.setReferenceSpace( teleportSpaceOffset );
+      }
+    }
+
+    function buildController( data ) {
+      let geometry, material
+      switch ( data.targetRayMode ) {
+        case 'tracked-pointer':
+          geometry = new THREE.BufferGeometry();
+          geometry.setAttribute( 'position', new THREE.Float32BufferAttribute( [ 0, 0, 0, 0, 0, - 1 ], 3 ) );
+          geometry.setAttribute( 'color', new THREE.Float32BufferAttribute( [ 0.5, 0.5, 0.5, 0, 0, 0 ], 3 ) );
+          material = new THREE.LineBasicMaterial( { vertexColors: true, blending: THREE.AdditiveBlending } );
+          return new THREE.Line( geometry, material );
+        case 'gaze':
+          geometry = new THREE.RingGeometry( 0.02, 0.04, 32 ).translate( 0, 0, - 1 );
+          material = new THREE.MeshBasicMaterial( { opacity: 0.5, transparent: true } );
+          return new THREE.Mesh( geometry, material );
+      }
+    }
+
+    let _renderer = this.renderer;
+    let _baseReferenceSpace = this.baseReferenceSpace;
+    this.rightControllerRay = this.renderer.xr.getController( 0 );
+    this.rightControllerRay.addEventListener( 'selectstart', onControllerSelectStart );
+    this.rightControllerRay.addEventListener( 'selectend', onControllerSelectEnd.bind(this, _renderer, _baseReferenceSpace) );
+    this.rightControllerRay.addEventListener( 'connected', function ( event ) {
+      this.add( buildController( event.data ) );
+    } );
+    this.rightControllerRay.addEventListener( 'disconnected', function () {
+      this.remove( this.children[ 0 ] );
+    } );
+    this.scene.add( this.rightControllerRay );
+
+    this.leftControllerRay = this.renderer.xr.getController( 1 );
+    this.leftControllerRay.addEventListener( 'selectstart', onControllerSelectStart );
+    this.leftControllerRay.addEventListener( 'selectend', onControllerSelectEnd.bind(this, _renderer, _baseReferenceSpace) );
+    this.leftControllerRay.addEventListener( 'connected', function ( event ) {
+      this.add( buildController( event.data ) );
+    } );
+    this.leftControllerRay.addEventListener( 'disconnected', function () {
+      this.remove( this.children[ 0 ] );
+    } );
+    this.scene.add( this.leftControllerRay );
+
+    // The XRControllerModelFactory will automatically fetch controller models
+    // that match what the user is holding as closely as possible. The models
+    // should be attached to the object returned from getControllerGrip in
+    // order to match the orientation of the held device.
+    const controllerModelFactory = new XRControllerModelFactory();
+    this.controllerGrip1 = this.renderer.xr.getControllerGrip( 0 );
+    this.controllerGrip1.add( controllerModelFactory.createControllerModel( this.controllerGrip1 ) );
+    this.scene.add( this.controllerGrip1 );
+    this.controllerGrip2 = this.renderer.xr.getControllerGrip( 1 );
+    this.controllerGrip2.add( controllerModelFactory.createControllerModel( this.controllerGrip2 ) );
+    this.scene.add( this.controllerGrip2 );
+
     this.container.style.touchAction = 'none';
+    // this.container.addEventListener( 'touchstart', this.onPointerDown.bind(this) );
     this.container.addEventListener( 'pointerdown', this.onPointerDown.bind(this) );
 
     document.addEventListener( 'wheel', this.onDocumentMouseWheel.bind(this) );
@@ -115,6 +189,8 @@ class SphereProjection {
       this.listenMouse = true;
       this.container.addEventListener( 'pointermove', this.onPointerMove.bind(this) );
       this.container.addEventListener( 'pointerup', this.onPointerUp.bind(this) );
+      // this.container.addEventListener( 'touchmove', this.onPointerMove.bind(this) );
+      // this.container.addEventListener( 'touchup', this.onPointerUp.bind(this) );
     }
 
     event.preventDefault();
@@ -123,11 +199,11 @@ class SphereProjection {
     var mousePosition = new THREE.Vector2((event.clientX/window.innerWidth)*2-1,  -(event.clientY/window.innerHeight)*2+1);
 
     // Create & configure raycaster
-    var raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(mousePosition, this.camera);
+    // var raycaster = new THREE.Raycaster();
+    this.raycaster.setFromCamera(mousePosition, this.camera);
 
     // Check if event position intersects videoPlayerObject and if videoPlayerObject can play
-    var intersects = raycaster.intersectObject(this.videoPlayerObject.getPlayButtonMesh(), true);
+    var intersects = this.raycaster.intersectObject(this.videoPlayerObject.getPlayButtonMesh(), true);
     if(intersects.length > 0 && this.videoPlayerObject.canPlay()){
         // Play video if paused, pause if playing
         if(this.videoPlayerObject.isPaused()){
@@ -173,6 +249,26 @@ class SphereProjection {
     // if ( this.isUserInteracting === false ) {
     //   this.lon += 0.1;
     // }
+
+    if ( this.rightControllerRay.userData.isSelecting === true ) {
+      this.tempMatrix.identity().extractRotation( this.rightControllerRay.matrixWorld );
+      this.raycaster.ray.origin.setFromMatrixPosition( this.rightControllerRay.matrixWorld );
+      this.raycaster.ray.direction.set( 0, 0, - 1 ).applyMatrix4( this.tempMatrix );
+
+      // const intersects = this.raycaster.intersectObjects( [ floor ] );
+      // if ( intersects.length > 0 ) {
+      //   INTERSECTION = intersects[ 0 ].point;
+      // }
+    } else if ( this.leftControllerRay.userData.isSelecting === true ) {
+      this.tempMatrix.identity().extractRotation( this.leftControllerRay.matrixWorld );
+      this.raycaster.ray.origin.setFromMatrixPosition( this.leftControllerRay.matrixWorld );
+      this.raycaster.ray.direction.set( 0, 0, - 1 ).applyMatrix4( this.tempMatrix );
+
+      // const intersects = this.raycaster.intersectObjects( [ floor ] );
+      // if ( intersects.length > 0 ) {
+      //   INTERSECTION = intersects[ 0 ].point;
+      // }
+    }
 
     this.lat = Math.max( - 85, Math.min( 85, this.lat ) );
     this.phi = THREE.MathUtils.degToRad( 90 - this.lat );

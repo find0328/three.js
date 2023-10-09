@@ -11,14 +11,17 @@ import HelloWorld from './components/HelloWorld.vue'
 <script setup>
 import Base3d from './utils/Base3d';
 import SphereProjection from './utils/SphereProjection';
+import VRTeleport from './utils/VRTeleport';
 import { reactive,onMounted } from 'vue';
 const data = reactive({
     base3d:{},
-    sphereprojection:{}
+    sphereprojection:{},
+    vrteleport: {}
 })
 onMounted(()=>{
     // data.base3d = new Base3d('#scene')
-    data.sphereprojection = new SphereProjection('#scene')
+    // data.sphereprojection = new SphereProjection('#scene')
+    data.vrteleport = new VRTeleport('#scene')
 })
 </script>
 
