@@ -22,7 +22,7 @@ const data = reactive({
 })
 onMounted(()=>{
     // data.base3d = new Base3d('#scene')
-    // data.sphereprojection = new SphereProjection('#scene')
+    data.sphereprojection = new SphereProjection('#scene')
     // data.vrteleport = new VRTeleport('#scene')
     data.vrvideo = new VRVideo('#scene')
 })

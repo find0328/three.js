@@ -26,6 +26,7 @@ class SphereProjection {
 
   init() {
     this.camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 1, 1100 );
+    this.camera.position.set( 0, 1, 1 ); // 相机位置
 
     this.scene = new THREE.Scene();
 
@@ -46,7 +47,8 @@ class SphereProjection {
       source: "./files/coffee.mp4",
       play_btn_color: 0x6EABDD
     });
-    this.videoPlayerObject.getMesh().position.z = -2;
+    this.videoPlayerObject.getMesh().position.y = 1;
+    this.videoPlayerObject.getMesh().position.z = -1;
     this.scene.add(this.videoPlayerObject.getMesh());
 
     // Initialize play button object
@@ -249,37 +251,38 @@ class SphereProjection {
     // if ( this.isUserInteracting === false ) {
     //   this.lon += 0.1;
     // }
+    if (this.isUserInteracting) {
+      if ( this.rightControllerRay.userData.isSelecting === true ) {
+        this.tempMatrix.identity().extractRotation( this.rightControllerRay.matrixWorld );
+        this.raycaster.ray.origin.setFromMatrixPosition( this.rightControllerRay.matrixWorld );
+        this.raycaster.ray.direction.set( 0, 0, - 1 ).applyMatrix4( this.tempMatrix );
 
-    if ( this.rightControllerRay.userData.isSelecting === true ) {
-      this.tempMatrix.identity().extractRotation( this.rightControllerRay.matrixWorld );
-      this.raycaster.ray.origin.setFromMatrixPosition( this.rightControllerRay.matrixWorld );
-      this.raycaster.ray.direction.set( 0, 0, - 1 ).applyMatrix4( this.tempMatrix );
+        // const intersects = this.raycaster.intersectObjects( [ floor ] );
+        // if ( intersects.length > 0 ) {
+        //   INTERSECTION = intersects[ 0 ].point;
+        // }
+      } else if ( this.leftControllerRay.userData.isSelecting === true ) {
+        this.tempMatrix.identity().extractRotation( this.leftControllerRay.matrixWorld );
+        this.raycaster.ray.origin.setFromMatrixPosition( this.leftControllerRay.matrixWorld );
+        this.raycaster.ray.direction.set( 0, 0, - 1 ).applyMatrix4( this.tempMatrix );
 
-      // const intersects = this.raycaster.intersectObjects( [ floor ] );
-      // if ( intersects.length > 0 ) {
-      //   INTERSECTION = intersects[ 0 ].point;
-      // }
-    } else if ( this.leftControllerRay.userData.isSelecting === true ) {
-      this.tempMatrix.identity().extractRotation( this.leftControllerRay.matrixWorld );
-      this.raycaster.ray.origin.setFromMatrixPosition( this.leftControllerRay.matrixWorld );
-      this.raycaster.ray.direction.set( 0, 0, - 1 ).applyMatrix4( this.tempMatrix );
+        // const intersects = this.raycaster.intersectObjects( [ floor ] );
+        // if ( intersects.length > 0 ) {
+        //   INTERSECTION = intersects[ 0 ].point;
+        // }
+      }
 
-      // const intersects = this.raycaster.intersectObjects( [ floor ] );
-      // if ( intersects.length > 0 ) {
-      //   INTERSECTION = intersects[ 0 ].point;
-      // }
+      this.lat = Math.max( - 85, Math.min( 85, this.lat ) );
+      this.phi = THREE.MathUtils.degToRad( 90 - this.lat );
+      this.theta = THREE.MathUtils.degToRad( this.lon );
+
+      const x = 500 * Math.sin( this.phi ) * Math.cos( this.theta );
+      const y = 500 * Math.cos( this.phi );
+      const z = 500 * Math.sin( this.phi ) * Math.sin( this.theta );
+
+      this.camera.lookAt( x, y, z );
+      // this.camera.lookAt( this._playButtonObject.position.x, this._playButtonObject.position.y, this._playButtonObject.position.z );
     }
-
-    this.lat = Math.max( - 85, Math.min( 85, this.lat ) );
-    this.phi = THREE.MathUtils.degToRad( 90 - this.lat );
-    this.theta = THREE.MathUtils.degToRad( this.lon );
-
-    const x = 500 * Math.sin( this.phi ) * Math.cos( this.theta );
-    const y = 500 * Math.cos( this.phi );
-    const z = 500 * Math.sin( this.phi ) * Math.sin( this.theta );
-
-    this.camera.lookAt( x, y, z );
-    // this.camera.lookAt( this._playButtonObject.position.x, this._playButtonObject.position.y, this._playButtonObject.position.z );
     this.renderer.render( this.scene, this.camera );
   }
 }

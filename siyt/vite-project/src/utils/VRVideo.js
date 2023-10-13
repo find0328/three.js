@@ -31,8 +31,13 @@ function init() {
   // 2>
   // camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 1100 );
   camera = new THREE.PerspectiveCamera( 50, window.innerWidth / window.innerHeight, 0.1, 10 );
-  camera.position.set( 0, 1, 3 );
+  camera.position.set( 0, 1, 3 ); // 相机位置
+  camera.lookAt( 0, 1, 2 ); // 相机默认是从z轴看向-z轴，可以理解为往正前看
   scene = new THREE.Scene();
+
+  var axesHelper = new THREE.AxesHelper( 10 );
+  scene.add( axesHelper );
+  axesHelper.position.set(1, 0.001, 0.001);
   
   // 2.1> 图片球形贴图，box映射贴图见webxr_vr_panorama.html
   // addSpherePic();
@@ -44,8 +49,8 @@ function init() {
     play_btn_color: 0x6EABDD
   });
   videoPlayerObject.getMesh().position.x = 0;
-  videoPlayerObject.getMesh().position.y = 1;
-  videoPlayerObject.getMesh().position.z = -2;
+  videoPlayerObject.getMesh().position.y = 0.5;
+  videoPlayerObject.getMesh().position.z = 0;
   scene.add(videoPlayerObject.getMesh());
 
   // 2.3> 射线对象: hit test
@@ -101,6 +106,12 @@ function init() {
     this.remove( this.children[ 0 ] );
   } );
   scene.add( controller2 );
+  const geometry = new THREE.BufferGeometry().setFromPoints( [ new THREE.Vector3( 0, 0, 0 ), new THREE.Vector3( 0, 0, - 1 ) ] );
+  const line = new THREE.Line( geometry );
+  line.name = 'line';
+  line.scale.z = 5;
+  controller1.add( line.clone() );
+  controller2.add( line.clone() );
 
   // 2.5> 加载左右手柄模型
   const controllerModelFactory = new XRControllerModelFactory();
